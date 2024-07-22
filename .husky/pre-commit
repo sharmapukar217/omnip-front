@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# lint files
+npx lint-staged
+
+# create .env.example file
+npx generate-env-example
+
+# add .env.example file to the commit list
+git add .env.example

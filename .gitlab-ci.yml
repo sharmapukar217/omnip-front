@@ -1,0 +1,30 @@
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  image: node:14.16.0-buster
+  script:
+    - npm install # install dependencies
+  cache:
+    paths:
+      - node_modules/
+
+variables:
+  SERVICE_NAME: "app-omnip"
+
+deploy:
+  stage: deploy
+  only:
+    - dev # This pipeline stage will run on this branch alone
+
+  image: google/cloud-sdk:latest # We'll use Google Cloud SDK for Cloud Run related commands
+  script:
+    - echo $GCP_SERVICE_ACCOUNT > gcloud-service-key.json # Save Google cloud contents in a temporary json file
+    - gcloud auth activate-service-account --key-file gcloud-service-key.json # Activate your service account
+    - gcloud auth configure-docker # Configure docker environment
+    - gcloud config set project $GCP_PROJECT_ID #Set the GCP Project ID to the variable name
+    - gcloud builds submit --suppress-logs --gcs-log-dir gs://logs-talaria/logs --tag gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME #Run the gcloud build command to build our image
+    - gcloud run deploy $SERVICE_NAME --image gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME --region=europe-west1 --platform managed --allow-unauthenticated --port 8080 --set-env-vars NUXT_PUBLIC_STATIC_TOKEN=$NUXT_PUBLIC_STATIC_TOKEN,NUXT_PUBLIC_DIRECTUS_URL=$NUXT_PUBLIC_DIRECTUS_URL,NUXT_PUBLIC_SIRET_API_KEY=$NUXT_PUBLIC_SIRET_API_KEY,NUXT_PUBLIC_CHAT_PDF_KEY=$NUXT_PUBLIC_CHAT_PDF_KEY,NUXT_PUBLIC_GOOGLE_VISION_KEY=$NUXT_PUBLIC_GOOGLE_VISION_KEY,NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,NUXT_PUBLIC_FIREBASE_APP_ID=$NUXT_PUBLIC_FIREBASE_APP_ID,NUXT_PUBLIC_FIREBASE_API_KEY=$NUXT_PUBLIC_FIREBASE_API_KEY,NUXT_PRIVATE_VAPID_KEY=$NUXT_PRIVATE_VAPID_KEY,NUXT_PUBLIC_VAPID_KEY=$NUXT_PUBLIC_VAPID_KEY # Run the gcloud run deploy command to deploy our new service
+    # - gcloud compute firewall-rules create allow-http --allow tcp:3000 --target-tags $SERVICE_NAME
